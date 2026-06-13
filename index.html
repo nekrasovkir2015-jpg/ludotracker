@@ -50,7 +50,6 @@
         </div>
 
         <div class="grid grid-cols-12 gap-6">
-            <!-- Форма -->
             <div class="col-span-12 lg:col-span-4">
                 <div class="bg-gray-900 rounded-3xl p-8 border border-gray-800 sticky top-6">
                     <h2 class="text-2xl font-semibold mb-6">Новая ставка</h2>
@@ -67,13 +66,13 @@
                                 <input type="date" id="date" class="w-full form-input">
                             </div>
 
-                            <!-- Одиночная ставка -->
+                            <!-- Одиночная -->
                             <div id="single-fields">
                                 <div class="space-y-5">
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm text-gray-400 mb-2">Дисциплина</label>
-                                            <input type="text" id="discipline" placeholder="Футбол" class="w-full form-input" required>
+                                            <input type="text" id="discipline" placeholder="Футбол" class="w-full form-input">
                                         </div>
                                         <div>
                                             <label class="block text-sm text-gray-400 mb-2">Турнир</label>
@@ -81,7 +80,7 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-sm text-gray-400 mb-2">Событие (Команда 1 - Команда 2)</label>
+                                        <label class="block text-sm text-gray-400 mb-2">Событие</label>
                                         <input type="text" id="event" placeholder="Реал Мадрид - Барселона" class="w-full form-input">
                                     </div>
                                     <div>
@@ -91,11 +90,11 @@
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm text-gray-400 mb-2">Коэффициент</label>
-                                            <input type="number" id="odds" step="0.01" min="1" class="w-full form-input font-mono" required>
+                                            <input type="number" id="odds" step="0.01" min="1" class="w-full form-input font-mono">
                                         </div>
                                         <div>
                                             <label class="block text-sm text-gray-400 mb-2">Ставка ₽</label>
-                                            <input type="number" id="stake" step="0.01" class="w-full form-input font-mono" required>
+                                            <input type="number" id="stake" step="0.01" class="w-full form-input font-mono">
                                         </div>
                                     </div>
                                 </div>
@@ -117,7 +116,7 @@
 
                                 <div class="mt-6">
                                     <label class="block text-sm text-gray-400 mb-2">Сумма ставки на весь экспресс ₽</label>
-                                    <input type="number" id="express-stake" step="0.01" class="w-full form-input font-mono" required>
+                                    <input type="number" id="express-stake" step="0.01" class="w-full form-input font-mono">
                                 </div>
                             </div>
 
@@ -135,7 +134,7 @@
                 </div>
             </div>
 
-            <!-- Правая колонка -->
+            <!-- Статистика и история -->
             <div class="col-span-12 lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
@@ -393,6 +392,7 @@
 
         function addBet(e) {
             e.preventDefault();
+
             const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
             const result = document.querySelector('input[name="result"]:checked').value;
 
@@ -405,6 +405,11 @@
                 bet.outcome = document.getElementById('outcome').value.trim();
                 bet.odds = parseFloat(document.getElementById('odds').value);
                 bet.stake = parseFloat(document.getElementById('stake').value);
+
+                if (!bet.odds || !bet.stake) {
+                    alert('Заполните коэффициент и сумму ставки!');
+                    return;
+                }
             } else {
                 if (legs.length < 2) return alert('Минимум 2 ноги в экспрессе');
                 const stake = parseFloat(document.getElementById('express-stake').value);
@@ -417,8 +422,6 @@
                 bet.event = legs.map(l => l.event || '—').join(' | ');
             }
 
-            if (!bet.stake) return alert('Укажите сумму ставки');
-
             if (result === 'win') {
                 const wa = prompt('Сумма выигрыша (Enter = авто):');
                 bet.winAmount = wa ? parseFloat(wa) : null;
@@ -428,10 +431,10 @@
                 document.getElementById('bet-form').reset();
                 legs = [];
                 setBetType('single');
-                alert('✅ Ставка добавлена!');
+                alert('✅ Ставка успешно добавлена!');
             }).catch(err => {
                 console.error(err);
-                alert('Ошибка: ' + err.message);
+                alert('Ошибка сохранения: ' + err.message);
             });
         }
 
