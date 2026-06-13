@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер Ставок Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+        window.firebaseApp = initializeApp({
+            apiKey: "AIzaSyDGVLBbwc8B8Ity7V1BmwEBx7Ebj4pEvjA",
+            authDomain: "ludotracker-365a7.firebaseapp.com",
+            projectId: "ludotracker-365a7",
+            storageBucket: "ludotracker-365a7.firebasestorage.app",
+            messagingSenderId: "797582039156",
+            appId: "1:797582039156:web:5aaef02b9cdeed2dd19921"
+        });
+        window.db = getFirestore(window.firebaseApp);
+        window.betsRef = collection(window.db, "bets");
+    </script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .positive { color: #22c55e; }
+        .negative { color: #ef4444; }
+        .form-input { 
+            background-color: #1f2937; 
+            border: 1px solid #4b5563; 
+            border-radius: 16px; 
+            padding: 14px 16px; 
+            font-size: 16px; 
+        }
+        .form-input:focus { 
+            border-color: #22c55e; 
+            outline: none; 
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold flex items-center gap-3">
+                <i class="fas fa-chart-line text-green-500"></i>
+                Трекер Ставок Pro
+            </h1>
+            <div class="flex items-center gap-4">
+                <div onclick="editBank()" id="bank-display" class="text-2xl font-mono font-semibold bg-gray-900 px-6 py-3 rounded-2xl border border-gray-700 cursor-pointer hover:border-green-500"></div>
+                <button onclick="exportCSV()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-2"><i class="fas fa-download"></i> Экспорт</button>
+                <button onclick="resetData()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl flex items-center gap-2"><i class="fas fa-trash"></i> Сброс</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Форма -->
+            <div class="col-span-12 lg:col-span-4">
+                <div class="bg-gray-900 rounded-3xl p-8 border border-gray-800 sticky top-6">
+                    <h2 class="text-2xl font-semibold mb-6">Новая ставка</h2>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <button onclick="setBetType('single')" id="btn-single" class="flex-1 py-3 rounded-2xl font-medium bg-green-600">Одиночная</button>
+                        <button onclick="setBetType('express')" id="btn-express" class="flex-1 py-3 rounded-2xl font-medium bg-gray-700">Экспресс</button>
+                    </div>
+
+                    <form id="bet-form" onsubmit="addBet(event)">
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Дата</label>
+                                <input type="date" id="date" class="w-full form-input">
+                            </div>
+
+                            <!-- Одиночная -->
+                            <div id="single-fields">
+                                <div class="space-y-5">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm text-gray-400 mb-2">Дисциплина</label>
+                                            <input type="text" id="discipline" placeholder="Футбол" class="w-full form-input" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-400 mb-2">Турнир</label>
+                                            <input type="text" id="tournament" placeholder="РПЛ / ЛЧ" class="w-full form-input">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-400 mb-2">Событие (Команда 1 - Команда 2)</label>
+                                        <input type="text" id="event" placeholder="Реал Мадрид - Барселона" class="w-full form-input">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm text-gray-400 mb-2">Коэффициент</label>
+                                            <input type="number" id="odds" step="0.01" min="1" class="w-full form-input font-mono" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-400 mb-2">Ставка ₽</label>
+                                            <input type="number" id="stake" step="0.01" class="w-full form-input font-mono" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Экспресс -->
+                            <div id="express-fields" class="hidden">
+                                <div class="mb-4 font-medium text-lg">Ноги экспресса</div>
+                                <div id="legs-container" class="space-y-6"></div>
+
+                                <button type="button" onclick="addLeg()" 
+                                        class="mt-4 w-full py-4 border border-dashed border-gray-600 rounded-2xl text-green-400 hover:border-green-500 flex items-center justify-center gap-2">
+                                    <i class="fas fa-plus"></i> Добавить ногу
+                                </button>
+
+                                <div class="mt-8 p-6 bg-gray-800 rounded-2xl border border-gray-700">
+                                    <div class="text-sm text-gray-400 mb-2">Общий коэффициент купона</div>
+                                    <div id="total-odds-display" class="text-5xl font-mono font-bold text-green-400">1.00</div>
+                                </div>
+
+                                <div class="mt-6">
+                                    <label class="block text-sm text-gray-400 mb-2">Сумма ставки на весь экспресс ₽</label>
+                                    <input type="number" id="express-stake" step="0.01" class="w-full form-input font-mono" required>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">Результат</label>
+                                <div class="flex gap-4">
+                                    <label class="flex-1 cursor-pointer"><input type="radio" name="result" value="win" checked class="hidden peer"><div class="peer-checked:bg-green-600 peer-checked:text-white bg-gray-800 border border-gray-700 rounded-2xl py-4 text-center">Выигрыш</div></label>
+                                    <label class="flex-1 cursor-pointer"><input type="radio" name="result" value="loss" class="hidden peer"><div class="peer-checked:bg-red-600 peer-checked:text-white bg-gray-800 border border-gray-700 rounded-2xl py-4 text-center">Проигрыш</div></label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl text-xl font-semibold">Добавить ставку</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Статистика и история -->
+            <div class="col-span-12 lg:col-span-8 space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                        <div class="text-gray-400 text-sm">Банк</div>
+                        <div id="bank-main" class="text-3xl font-mono font-bold mt-1"></div>
+                    </div>
+                    <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                        <div class="text-gray-400 text-sm">Ставок</div>
+                        <div id="total-bets" class="text-3xl font-mono font-bold mt-1">0</div>
+                    </div>
+                    <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                        <div class="text-gray-400 text-sm">Прибыль</div>
+                        <div id="total-profit" class="text-3xl font-mono font-bold mt-1"></div>
+                    </div>
+                    <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                        <div class="text-gray-400 text-sm">ROI</div>
+                        <div id="roi" class="text-3xl font-mono font-bold mt-1"></div>
+                    </div>
+                    <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                        <div class="text-gray-400 text-sm">Винрейт</div>
+                        <div id="winrate" class="text-3xl font-mono font-bold mt-1"></div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                    <h3 class="text-xl font-semibold mb-4">По коэффициентам</h3>
+                    <div id="odds-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                </div>
+
+                <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
+                    <h3 class="text-xl font-semibold mb-4">По дисциплинам</h3>
+                    <div id="discipline-stats" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-gray-900 rounded-3xl overflow-hidden border border-gray-800">
+                    <div class="p-6 border-b border-gray-800 flex justify-between">
+                        <h2 class="text-2xl font-semibold">История</h2>
+                        <input type="text" id="search" placeholder="Поиск..." onkeyup="filterTable()" class="bg-gray-800 border border-gray-700 rounded-2xl px-5 py-3 w-80">
+                    </div>
+                    <div class="overflow-x-auto max-h-[500px]">
+                        <table class="history-table w-full text-sm">
+                            <thead class="bg-gray-950 sticky top-0">
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Тип</th>
+                                    <th>Турнир / Событие</th>
+                                    <th class="text-right">Кэф</th>
+                                    <th class="text-right">Ставка</th>
+                                    <th class="text-right">P/L</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модал банка -->
+    <div id="bank-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div class="bg-gray-900 rounded-3xl p-8 w-full max-w-md">
+            <h3 class="text-2xl mb-6">Начальный банк</h3>
+            <input type="number" id="new-bank" class="w-full form-input">
+            <div class="flex gap-4 mt-6">
+                <button onclick="saveNewBank()" class="flex-1 bg-green-600 py-4 rounded-2xl">Сохранить</button>
+                <button onclick="closeModal()" class="flex-1 bg-gray-700 py-4 rounded-2xl">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let bets = [];
+        let initialBank = 10000;
+        let currentBetType = 'single';
+        let legs = [];
+
+        function loadData() {
+            const q = query(window.betsRef, orderBy("date", "desc"));
+            onSnapshot(q, (snapshot) => {
+                bets = [];
+                snapshot.forEach(doc => bets.push({ id: doc.id, ...doc.data() }));
+                renderAll();
+            });
+        }
+
+        function calculateProfit(bet) {
+            const stake = parseFloat(bet.stake);
+            if (bet.result === 'win') {
+                const winAmount = bet.winAmount ? parseFloat(bet.winAmount) : (stake * parseFloat(bet.odds));
+                return winAmount - stake;
+            }
+            return -stake;
+        }
+
+        function getCurrentBank() {
+            return initialBank + bets.reduce((sum, bet) => sum + calculateProfit(bet), 0);
+        }
+
+        function renderBank() {
+            const bank = getCurrentBank();
+            const diff = bank - initialBank;
+            document.getElementById('bank-display').innerHTML = `Банк: <span class="${bank >= initialBank ? 'text-green-400' : 'text-red-400'}">${bank.toFixed(0)} ₽</span>`;
+            document.getElementById('bank-main').innerHTML = `${bank.toFixed(0)} ₽ <span class="${diff >= 0 ? 'text-green-400' : 'text-red-400'}">(${diff >= 0 ? '+' : ''}${diff.toFixed(0)})</span>`;
+        }
+
+        function renderMainStats() {
+            const total = bets.length;
+            const wins = bets.filter(b => b.result === 'win').length;
+            let totalStake = 0, totalProfit = 0;
+            bets.forEach(b => {
+                totalStake += parseFloat(b.stake);
+                totalProfit += calculateProfit(b);
+            });
+            const roi = totalStake ? (totalProfit / totalStake * 100).toFixed(1) : 0;
+            const winrate = total ? (wins / total * 100).toFixed(1) : 0;
+
+            document.getElementById('total-bets').textContent = total;
+            document.getElementById('total-profit').innerHTML = `${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(0)} ₽`;
+            document.getElementById('total-profit').className = `text-3xl font-mono font-bold mt-1 ${totalProfit >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            document.getElementById('roi').textContent = `${roi}%`;
+            document.getElementById('roi').className = `text-3xl font-mono font-bold mt-1 ${roi >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            document.getElementById('winrate').innerHTML = `${winrate}% <span class="text-sm text-gray-400">(${wins}/${total})</span>`;
+        }
+
+        function renderOddsStats() {
+            const ranges = [{min:1,max:1.5},{min:1.51,max:2},{min:2.01,max:3},{min:3.01,max:5},{min:5.01,max:999}];
+            let html = '';
+            ranges.forEach(r => {
+                const filtered = bets.filter(b => parseFloat(b.odds) >= r.min && parseFloat(b.odds) <= r.max);
+                if (filtered.length === 0) return;
+                const wins = filtered.filter(b => b.result === 'win').length;
+                const wr = (wins / filtered.length * 100).toFixed(1);
+                let profit = filtered.reduce((sum, b) => sum + calculateProfit(b), 0);
+                html += `<div class="bg-gray-800 rounded-2xl p-4 text-center"><div class="text-sm text-gray-400">${r.min}-${r.max===999?'∞':r.max}</div><div class="font-bold">${filtered.length}</div><div class="text-green-400">${wr}%</div><div class="${profit>=0?'text-green-400':'text-red-400'}">${profit.toFixed(0)}₽</div></div>`;
+            });
+            document.getElementById('odds-stats').innerHTML = html || '<p class="text-gray-500">Нет данных</p>';
+        }
+
+        function renderDisciplineStats() {
+            const map = {};
+            bets.forEach(b => {
+                const d = b.discipline || 'Другое';
+                if (!map[d]) map[d] = {total:0, wins:0, profit:0};
+                map[d].total++;
+                if (b.result === 'win') map[d].wins++;
+                map[d].profit += calculateProfit(b);
+            });
+            let html = '';
+            Object.keys(map).forEach(d => {
+                const s = map[d];
+                const wr = (s.wins / s.total * 100).toFixed(1);
+                html += `<div class="flex justify-between bg-gray-800 rounded-2xl p-4"><div><div class="font-medium">${d}</div><div class="text-sm text-gray-400">${s.total} • ${wr}%</div></div><div class="${s.profit>=0?'text-green-400':'text-red-400'}">${s.profit.toFixed(0)} ₽</div></div>`;
+            });
+            document.getElementById('discipline-stats').innerHTML = html || '<p class="text-gray-500">Нет данных</p>';
+        }
+
+        function renderHistory(filtered = bets) {
+            const tbody = document.getElementById('history-body');
+            tbody.innerHTML = '';
+            filtered.forEach(bet => {
+                const profit = calculateProfit(bet);
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-800';
+                row.innerHTML = `
+                    <td class="px-6 py-4">${bet.date}</td>
+                    <td class="px-6 py-4">${bet.type === 'express' ? 'Экспресс' : 'Одиночная'}</td>
+                    <td class="px-6 py-4">${bet.tournament ? bet.tournament + '<br>' : ''}${bet.event || bet.discipline}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold">${parseFloat(bet.odds).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right font-mono">${parseFloat(bet.stake).toFixed(0)}</td>
+                    <td class="px-6 py-4 text-right font-mono ${profit >= 0 ? 'positive' : 'negative'}">${profit.toFixed(0)}</td>
+                    <td class="px-6 py-4"><button onclick="deleteBet('${bet.id}')" class="text-red-400 hover:text-red-500"><i class="fas fa-trash"></i></button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderAll() {
+            renderBank();
+            renderMainStats();
+            renderOddsStats();
+            renderDisciplineStats();
+            renderHistory();
+        }
+
+        function setBetType(type) {
+            currentBetType = type;
+            document.getElementById('btn-single').classList.toggle('bg-green-600', type === 'single');
+            document.getElementById('btn-single').classList.toggle('bg-gray-700', type !== 'single');
+            document.getElementById('btn-express').classList.toggle('bg-green-600', type === 'express');
+            document.getElementById('btn-express').classList.toggle('bg-gray-700', type !== 'express');
+            document.getElementById('single-fields').classList.toggle('hidden', type === 'express');
+            document.getElementById('express-fields').classList.toggle('hidden', type === 'single');
+            if (type === 'express' && legs.length === 0) addLeg();
+        }
+
+        function addLeg() {
+            legs.push({discipline: '', tournament: '', event: '', odds: ''});
+            renderLegs();
+        }
+
+        function removeLeg(i) {
+            legs.splice(i, 1);
+            renderLegs();
+        }
+
+        function renderLegs() {
+            const container = document.getElementById('legs-container');
+            container.innerHTML = '';
+            legs.forEach((leg, i) => {
+                const div = document.createElement('div');
+                div.className = "bg-gray-800 rounded-3xl p-6 border border-gray-700";
+                div.innerHTML = `
+                    <div class="flex justify-between mb-4">
+                        <span class="font-semibold">Нога ${i+1}</span>
+                        <button onclick="removeLeg(${i})" class="text-red-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Дисциплина</label>
+                            <input type="text" value="${leg.discipline||''}" placeholder="Футбол" class="w-full form-input" onchange="legs[${i}].discipline=this.value">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Турнир</label>
+                            <input type="text" value="${leg.tournament||''}" placeholder="РПЛ / ЛЧ" class="w-full form-input" onchange="legs[${i}].tournament=this.value">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm text-gray-400 mb-2">Событие (Команда 1 - Команда 2)</label>
+                        <input type="text" value="${leg.event||''}" placeholder="Реал Мадрид - Барселона" class="w-full form-input" onchange="legs[${i}].event=this.value">
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm text-gray-400 mb-2">Коэффициент</label>
+                        <input type="number" value="${leg.odds||''}" step="0.01" placeholder="2.15" class="w-full form-input font-mono font-bold" onchange="legs[${i}].odds=this.value; updateTotalOdds()">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            updateTotalOdds();
+        }
+
+        function updateTotalOdds() {
+            let total = 1;
+            legs.forEach(leg => {
+                const o = parseFloat(leg.odds);
+                if (o > 0) total *= o;
+            });
+            document.getElementById('total-odds-display').textContent = total.toFixed(2);
+        }
+
+        function addBet(e) {
+            e.preventDefault();
+            const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+            const result = document.querySelector('input[name="result"]:checked').value;
+
+            let bet = { date, result, type: currentBetType, timestamp: Date.now() };
+
+            if (currentBetType === 'single') {
+                bet.discipline = document.getElementById('discipline').value.trim();
+                bet.tournament = document.getElementById('tournament').value.trim();
+                bet.event = document.getElementById('event').value.trim();
+                bet.odds = parseFloat(document.getElementById('odds').value);
+                bet.stake = parseFloat(document.getElementById('stake').value);
+            } else {
+                if (legs.length < 2) return alert('Минимум 2 ноги в экспрессе');
+                const stake = parseFloat(document.getElementById('express-stake').value);
+                if (!stake) return alert('Укажите сумму ставки');
+
+                bet.legs = legs.map(l => ({...l}));
+                bet.odds = legs.reduce((prod, l) => prod * (parseFloat(l.odds) || 1), 1);
+                bet.stake = stake;
+                bet.discipline = 'Экспресс';
+                bet.event = legs.map(l => l.event || '—').join(' | ');
+                bet.tournament = legs[0]?.tournament || '';
+            }
+
+            if (result === 'win') {
+                const wa = prompt('Сумма выигрыша (Enter = авто):');
+                bet.winAmount = wa ? parseFloat(wa) : null;
+            }
+
+            addDoc(window.betsRef, bet).then(() => {
+                document.getElementById('bet-form').reset();
+                legs = [];
+                setBetType('single');
+            });
+        }
+
+        function deleteBet(id) {
+            if (confirm('Удалить ставку?')) deleteDoc(doc(window.db, "bets", id));
+        }
+
+        function filterTable() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const filtered = q ? bets.filter(b => 
+                (b.discipline && b.discipline.toLowerCase().includes(q)) || 
+                (b.event && b.event.toLowerCase().includes(q)) ||
+                (b.tournament && b.tournament.toLowerCase().includes(q))
+            ) : bets;
+            renderHistory(filtered);
+        }
+
+        function editBank() {
+            document.getElementById('new-bank').value = initialBank;
+            document.getElementById('bank-modal').classList.remove('hidden');
+        }
+
+        function saveNewBank() {
+            initialBank = parseFloat(document.getElementById('new-bank').value) || 10000;
+            localStorage.setItem('initialBank', initialBank);
+            closeModal();
+            renderAll();
+        }
+
+        function closeModal() {
+            document.getElementById('bank-modal').classList.add('hidden');
+        }
+
+        function exportCSV() {
+            let csv = "Дата,Тип,Дисциплина,Турнир,Событие,Кэф,Ставка,Результат,Выигрыш,P/L\n";
+            bets.forEach(b => {
+                const pl = calculateProfit(b);
+                csv += `"${b.date}","${b.type}","${b.discipline || ''}","${b.tournament || ''}","${b.event || ''}",${b.odds},${b.stake},"${b.result}",${b.winAmount || ''},${pl}\n`;
+            });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+            a.download = `bets_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        function resetData() {
+            if (confirm('Сбросить все данные?')) {
+                window.betsRef.get().then(s => s.forEach(d => d.ref.delete()));
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        window.onload = () => {
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            const saved = localStorage.getItem('initialBank');
+            if (saved) initialBank = parseFloat(saved);
+            setBetType('single');
+            loadData();
+        };
+    </script>
+</body>
+</html>
