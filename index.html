@@ -67,7 +67,7 @@
                                 <input type="date" id="date" class="w-full form-input">
                             </div>
 
-                            <!-- Одиночная -->
+                            <!-- Одиночная ставка -->
                             <div id="single-fields">
                                 <div class="space-y-5">
                                     <div class="grid grid-cols-2 gap-4">
@@ -135,7 +135,7 @@
                 </div>
             </div>
 
-            <!-- Статистика и история -->
+            <!-- Правая колонка -->
             <div class="col-span-12 lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
@@ -408,14 +408,13 @@
             } else {
                 if (legs.length < 2) return alert('Минимум 2 ноги в экспрессе');
                 const stake = parseFloat(document.getElementById('express-stake').value);
-                if (!stake) return alert('Укажите сумму ставки');
+                if (!stake) return alert('Укажите сумму ставки на экспресс');
 
                 bet.legs = legs.map(l => ({...l}));
                 bet.odds = legs.reduce((prod, l) => prod * (parseFloat(l.odds) || 1), 1);
                 bet.stake = stake;
                 bet.discipline = 'Экспресс';
                 bet.event = legs.map(l => l.event || '—').join(' | ');
-                bet.tournament = legs[0]?.tournament || '';
             }
 
             if (!bet.stake) return alert('Укажите сумму ставки');
@@ -429,8 +428,11 @@
                 document.getElementById('bet-form').reset();
                 legs = [];
                 setBetType('single');
-                alert('Ставка успешно добавлена!');
-            }).catch(err => alert('Ошибка: ' + err.message));
+                alert('✅ Ставка добавлена!');
+            }).catch(err => {
+                console.error(err);
+                alert('Ошибка: ' + err.message);
+            });
         }
 
         function deleteBet(id) {
@@ -447,14 +449,21 @@
             renderHistory(filtered);
         }
 
-        function editBank() { document.getElementById('bank-modal').classList.remove('hidden'); document.getElementById('new-bank').value = initialBank; }
+        function editBank() {
+            document.getElementById('new-bank').value = initialBank;
+            document.getElementById('bank-modal').classList.remove('hidden');
+        }
+
         function saveNewBank() {
             initialBank = parseFloat(document.getElementById('new-bank').value) || 10000;
             localStorage.setItem('initialBank', initialBank);
             closeModal();
             renderAll();
         }
-        function closeModal() { document.getElementById('bank-modal').classList.add('hidden'); }
+
+        function closeModal() {
+            document.getElementById('bank-modal').classList.add('hidden');
+        }
 
         function exportCSV() {
             let csv = "Дата,Тип,Дисциплина,Турнир,Событие,Исход,Кэф,Ставка,Результат,Выигрыш,P/L\n";
