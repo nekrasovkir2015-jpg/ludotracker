@@ -6,21 +6,8 @@
     <title>Трекер Ставок Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
-
-        window.firebaseApp = initializeApp({
-            apiKey: "AIzaSyDGVLBbwc8B8Ity7V1BmwEBx7Ebj4pEvjA",
-            authDomain: "ludotracker-365a7.firebaseapp.com",
-            projectId: "ludotracker-365a7",
-            storageBucket: "ludotracker-365a7.firebasestorage.app",
-            messagingSenderId: "797582039156",
-            appId: "1:797582039156:web:5aaef02b9cdeed2dd19921"
-        });
-        window.db = getFirestore(window.firebaseApp);
-        window.betsRef = collection(window.db, "bets");
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
         .positive { color: #22c55e; }
@@ -66,7 +53,6 @@
                                 <input type="date" id="date" class="w-full form-input">
                             </div>
 
-                            <!-- Одиночная -->
                             <div id="single-fields">
                                 <div class="space-y-5">
                                     <div class="grid grid-cols-2 gap-4">
@@ -100,7 +86,6 @@
                                 </div>
                             </div>
 
-                            <!-- Экспресс -->
                             <div id="express-fields" class="hidden">
                                 <div class="mb-4 font-medium text-lg">Ноги экспресса</div>
                                 <div id="legs-container" class="space-y-6"></div>
@@ -134,7 +119,6 @@
                 </div>
             </div>
 
-            <!-- Статистика и история -->
             <div class="col-span-12 lg:col-span-8 space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
@@ -208,16 +192,30 @@
     </div>
 
     <script>
+        // Инициализация Firebase
+        firebase.initializeApp({
+            apiKey: "AIzaSyDGVLBbwc8B8Ity7V1BmwEBx7Ebj4pEvjA",
+            authDomain: "ludotracker-365a7.firebaseapp.com",
+            projectId: "ludotracker-365a7",
+            storageBucket: "ludotracker-365a7.firebasestorage.app",
+            messagingSenderId: "797582039156",
+            appId: "1:797582039156:web:5aaef02b9cdeed2dd19921"
+        });
+
+        const db = firebase.firestore();
+        const betsRef = db.collection("bets");
+
         let bets = [];
         let initialBank = 10000;
         let currentBetType = 'single';
         let legs = [];
 
         function loadData() {
-            const q = query(window.betsRef, orderBy("date", "desc"));
-            onSnapshot(q, (snapshot) => {
+            betsRef.orderBy("date", "desc").onSnapshot(snapshot => {
                 bets = [];
-                snapshot.forEach(doc => bets.push({ id: doc.id, ...doc.data() }));
+                snapshot.forEach(doc => {
+                    bets.push({ id: doc.id, ...doc.data() });
+                });
                 renderAll();
             });
         }
@@ -392,7 +390,6 @@
 
         function addBet(e) {
             e.preventDefault();
-
             const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
             const result = document.querySelector('input[name="result"]:checked').value;
 
@@ -405,15 +402,10 @@
                 bet.outcome = document.getElementById('outcome').value.trim();
                 bet.odds = parseFloat(document.getElementById('odds').value);
                 bet.stake = parseFloat(document.getElementById('stake').value);
-
-                if (!bet.odds || !bet.stake) {
-                    alert('Заполните коэффициент и сумму ставки!');
-                    return;
-                }
             } else {
                 if (legs.length < 2) return alert('Минимум 2 ноги в экспрессе');
                 const stake = parseFloat(document.getElementById('express-stake').value);
-                if (!stake) return alert('Укажите сумму ставки на экспресс');
+                if (!stake) return alert('Укажите сумму ставки');
 
                 bet.legs = legs.map(l => ({...l}));
                 bet.odds = legs.reduce((prod, l) => prod * (parseFloat(l.odds) || 1), 1);
@@ -421,6 +413,8 @@
                 bet.discipline = 'Экспресс';
                 bet.event = legs.map(l => l.event || '—').join(' | ');
             }
+
+            if (!bet.stake) return alert('Укажите сумму ставки');
 
             if (result === 'win') {
                 const wa = prompt('Сумма выигрыша (Enter = авто):');
@@ -434,7 +428,7 @@
                 alert('✅ Ставка успешно добавлена!');
             }).catch(err => {
                 console.error(err);
-                alert('Ошибка сохранения: ' + err.message);
+                alert('Ошибка: ' + err.message);
             });
         }
 
