@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LudoTracker</title>
+    <title>Трекер Ставок Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script type="module">
@@ -32,10 +32,7 @@
             padding: 14px 16px; 
             font-size: 16px; 
         }
-        .form-input:focus { 
-            border-color: #22c55e; 
-            outline: none; 
-        }
+        .form-input:focus { border-color: #22c55e; outline: none; }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
@@ -43,7 +40,7 @@
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-4xl font-bold flex items-center gap-3">
                 <i class="fas fa-chart-line text-green-500"></i>
-                LudoTracker
+                Трекер Ставок Pro
             </h1>
             <div class="flex items-center gap-4">
                 <div onclick="editBank()" id="bank-display" class="text-2xl font-mono font-semibold bg-gray-900 px-6 py-3 rounded-2xl border border-gray-700 cursor-pointer hover:border-green-500"></div>
@@ -87,6 +84,10 @@
                                         <label class="block text-sm text-gray-400 mb-2">Событие (Команда 1 - Команда 2)</label>
                                         <input type="text" id="event" placeholder="Реал Мадрид - Барселона" class="w-full form-input">
                                     </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-400 mb-2">Исход</label>
+                                        <input type="text" id="outcome" placeholder="П1 / Х / ТМ 2.5" class="w-full form-input">
+                                    </div>
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm text-gray-400 mb-2">Коэффициент</label>
@@ -105,8 +106,7 @@
                                 <div class="mb-4 font-medium text-lg">Ноги экспресса</div>
                                 <div id="legs-container" class="space-y-6"></div>
 
-                                <button type="button" onclick="addLeg()" 
-                                        class="mt-4 w-full py-4 border border-dashed border-gray-600 rounded-2xl text-green-400 hover:border-green-500 flex items-center justify-center gap-2">
+                                <button type="button" onclick="addLeg()" class="mt-4 w-full py-4 border border-dashed border-gray-600 rounded-2xl text-green-400 hover:border-green-500 flex items-center justify-center gap-2">
                                     <i class="fas fa-plus"></i> Добавить ногу
                                 </button>
 
@@ -181,7 +181,7 @@
                                 <tr>
                                     <th>Дата</th>
                                     <th>Тип</th>
-                                    <th>Турнир / Событие</th>
+                                    <th>Исход / Событие</th>
                                     <th class="text-right">Кэф</th>
                                     <th class="text-right">Ставка</th>
                                     <th class="text-right">P/L</th>
@@ -304,7 +304,7 @@
                 row.innerHTML = `
                     <td class="px-6 py-4">${bet.date}</td>
                     <td class="px-6 py-4">${bet.type === 'express' ? 'Экспресс' : 'Одиночная'}</td>
-                    <td class="px-6 py-4">${bet.tournament ? bet.tournament + '<br>' : ''}${bet.event || bet.discipline}</td>
+                    <td class="px-6 py-4">${bet.outcome ? bet.outcome + '<br>' : ''}${bet.event || bet.discipline}</td>
                     <td class="px-6 py-4 text-right font-mono font-bold">${parseFloat(bet.odds).toFixed(2)}</td>
                     <td class="px-6 py-4 text-right font-mono">${parseFloat(bet.stake).toFixed(0)}</td>
                     <td class="px-6 py-4 text-right font-mono ${profit >= 0 ? 'positive' : 'negative'}">${profit.toFixed(0)}</td>
@@ -334,7 +334,7 @@
         }
 
         function addLeg() {
-            legs.push({discipline: '', tournament: '', event: '', odds: ''});
+            legs.push({discipline: '', tournament: '', event: '', outcome: '', odds: ''});
             renderLegs();
         }
 
@@ -365,8 +365,12 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <label class="block text-sm text-gray-400 mb-2">Событие (Команда 1 - Команда 2)</label>
+                        <label class="block text-sm text-gray-400 mb-2">Событие</label>
                         <input type="text" value="${leg.event||''}" placeholder="Реал Мадрид - Барселона" class="w-full form-input" onchange="legs[${i}].event=this.value">
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm text-gray-400 mb-2">Исход</label>
+                        <input type="text" value="${leg.outcome||''}" placeholder="П1 / ТМ 2.5" class="w-full form-input" onchange="legs[${i}].outcome=this.value">
                     </div>
                     <div class="mt-4">
                         <label class="block text-sm text-gray-400 mb-2">Коэффициент</label>
@@ -398,6 +402,7 @@
                 bet.discipline = document.getElementById('discipline').value.trim();
                 bet.tournament = document.getElementById('tournament').value.trim();
                 bet.event = document.getElementById('event').value.trim();
+                bet.outcome = document.getElementById('outcome').value.trim();
                 bet.odds = parseFloat(document.getElementById('odds').value);
                 bet.stake = parseFloat(document.getElementById('stake').value);
             } else {
@@ -413,6 +418,8 @@
                 bet.tournament = legs[0]?.tournament || '';
             }
 
+            if (!bet.stake) return alert('Укажите сумму ставки');
+
             if (result === 'win') {
                 const wa = prompt('Сумма выигрыша (Enter = авто):');
                 bet.winAmount = wa ? parseFloat(wa) : null;
@@ -422,7 +429,8 @@
                 document.getElementById('bet-form').reset();
                 legs = [];
                 setBetType('single');
-            });
+                alert('Ставка успешно добавлена!');
+            }).catch(err => alert('Ошибка: ' + err.message));
         }
 
         function deleteBet(id) {
@@ -434,35 +442,28 @@
             const filtered = q ? bets.filter(b => 
                 (b.discipline && b.discipline.toLowerCase().includes(q)) || 
                 (b.event && b.event.toLowerCase().includes(q)) ||
-                (b.tournament && b.tournament.toLowerCase().includes(q))
+                (b.outcome && b.outcome.toLowerCase().includes(q))
             ) : bets;
             renderHistory(filtered);
         }
 
-        function editBank() {
-            document.getElementById('new-bank').value = initialBank;
-            document.getElementById('bank-modal').classList.remove('hidden');
-        }
-
+        function editBank() { document.getElementById('bank-modal').classList.remove('hidden'); document.getElementById('new-bank').value = initialBank; }
         function saveNewBank() {
             initialBank = parseFloat(document.getElementById('new-bank').value) || 10000;
             localStorage.setItem('initialBank', initialBank);
             closeModal();
             renderAll();
         }
-
-        function closeModal() {
-            document.getElementById('bank-modal').classList.add('hidden');
-        }
+        function closeModal() { document.getElementById('bank-modal').classList.add('hidden'); }
 
         function exportCSV() {
-            let csv = "Дата,Тип,Дисциплина,Турнир,Событие,Кэф,Ставка,Результат,Выигрыш,P/L\n";
+            let csv = "Дата,Тип,Дисциплина,Турнир,Событие,Исход,Кэф,Ставка,Результат,Выигрыш,P/L\n";
             bets.forEach(b => {
                 const pl = calculateProfit(b);
-                csv += `"${b.date}","${b.type}","${b.discipline || ''}","${b.tournament || ''}","${b.event || ''}",${b.odds},${b.stake},"${b.result}",${b.winAmount || ''},${pl}\n`;
+                csv += `"${b.date}","${b.type}","${b.discipline || ''}","${b.tournament || ''}","${b.event || ''}","${b.outcome || ''}",${b.odds},${b.stake},"${b.result}",${b.winAmount || ''},${pl}\n`;
             });
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+            a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
             a.download = `bets_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
         }
@@ -473,6 +474,14 @@
                 localStorage.clear();
                 location.reload();
             }
+        }
+
+        function renderAll() {
+            renderBank();
+            renderMainStats();
+            renderOddsStats();
+            renderDisciplineStats();
+            renderHistory();
         }
 
         window.onload = () => {
