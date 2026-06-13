@@ -6,6 +6,7 @@
     <title>Трекер Ставок Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Firebase Compat Version -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <style>
@@ -120,6 +121,7 @@
             </div>
 
             <div class="col-span-12 lg:col-span-8 space-y-6">
+                <!-- Статистика -->
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-900 rounded-3xl p-6 border border-gray-800">
                         <div class="text-gray-400 text-sm">Банк</div>
@@ -192,7 +194,6 @@
     </div>
 
     <script>
-        // Инициализация Firebase
         firebase.initializeApp({
             apiKey: "AIzaSyDGVLBbwc8B8Ity7V1BmwEBx7Ebj4pEvjA",
             authDomain: "ludotracker-365a7.firebaseapp.com",
@@ -213,9 +214,7 @@
         function loadData() {
             betsRef.orderBy("date", "desc").onSnapshot(snapshot => {
                 bets = [];
-                snapshot.forEach(doc => {
-                    bets.push({ id: doc.id, ...doc.data() });
-                });
+                snapshot.forEach(doc => bets.push({ id: doc.id, ...doc.data() }));
                 renderAll();
             });
         }
@@ -421,7 +420,7 @@
                 bet.winAmount = wa ? parseFloat(wa) : null;
             }
 
-            addDoc(window.betsRef, bet).then(() => {
+            betsRef.add(bet).then(() => {
                 document.getElementById('bet-form').reset();
                 legs = [];
                 setBetType('single');
@@ -476,7 +475,7 @@
 
         function resetData() {
             if (confirm('Сбросить все данные?')) {
-                window.betsRef.get().then(s => s.forEach(d => d.ref.delete()));
+                betsRef.get().then(s => s.forEach(d => d.ref.delete()));
                 localStorage.clear();
                 location.reload();
             }
